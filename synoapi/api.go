@@ -23,7 +23,7 @@ func NewClient(base_url string) *Client {
 	return &Client{api_base: api_base}
 }
 
-type SynoLoginResponse struct {
+type LoginResponse struct {
 	synoBaseResponse
 	Data struct {
 		Sid string
@@ -37,7 +37,7 @@ func (c *Client) Login(user string, password string) error {
 		"format":  "sid",
 	}
 
-	resp := SynoLoginResponse{synoBaseResponse: synoBaseResponse{}}
+	resp := LoginResponse{synoBaseResponse: synoBaseResponse{}}
 	err := c.request("auth.cgi", "SYNO.API.Auth", "3", "login", params, &resp)
 
 	if err != nil {
@@ -48,6 +48,37 @@ func (c *Client) Login(user string, password string) error {
 	c.sid = resp.Data.Sid
 
 	return err
+}
+
+type Share struct {
+	Description string `json:"desc"`
+	Encryption  EncryptionStatus
+	Name        string
+	vol_path    string
+}
+
+type ListSharesResponse struct {
+	synoBaseResponse
+	Data struct {
+		Shares []Share
+	}
+}
+
+func (c *Client) ListShares() ([]Share, error) {
+	params := map[string]string{
+		"shareType":  "all",
+		"additional": "[\"encryption\",\"hidden\"]",
+	}
+
+	r := ListSharesResponse{synoBaseResponse: synoBaseResponse{}}
+	err := c.request("_______________________________________________________entry.cgi",
+		"SYNO.Core.Share", "1", "list", params, &r)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return r.Data.Shares, nil
 }
 
 func (c *Client) request(path string, api string, api_version string, method string, params map[string]string, r SynoBaseResponse) ClientError {
