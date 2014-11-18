@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -18,7 +19,8 @@ var (
 	lock            = kingpin.Command("lock", "Lock an encrypted volume")
 	lockShareName   = lock.Arg("share name", "Name of the share to be locked").Required().String()
 	unlock          = kingpin.Command("unlock", "Unlock an encrypted volume")
-	unlockShareName = unlock.Arg("share name", "Name of the share to be unlocked").Required().String()
+	unlockShareName = unlock.Arg("share name", "Name of the share to be unlocked").String()
+	unlockBatch     = unlock.Flag("batch", "Use JSON provided via STDIN for unlocking multiple shares").Bool()
 )
 
 func main() {
@@ -43,7 +45,7 @@ func main() {
 	case "lock":
 		lockShare(client, *lockShareName)
 	case "unlock":
-		unlockShare(client, *unlockShareName)
+		unlockShare(client, *unlockShareName, *unlockBatch)
 	}
 }
 
@@ -69,12 +71,39 @@ func lockShare(client *synoapi.Client, shareName string) {
 	}
 }
 
-func unlockShare(client *synoapi.Client, shareName string) {
-	fmt.Fprint(os.Stderr, "Enter password (passing via stdin is also ok):\n")
-	pass := readPassword()
-	err := client.UnlockShare(shareName, pass)
-	if err != nil {
-		log.Fatalf("Unlocking failed: %v", err)
+type ShareInfo struct {
+	Name     string
+	Password string
+}
+
+func unlockShare(client *synoapi.Client, shareName string, batch bool) {
+	passList := make([]ShareInfo, 0)
+
+	if batch {
+		dec := json.NewDecoder(os.Stdin)
+		err := dec.Decode(&passList)
+		if err != nil {
+			log.Fatalf("Failed to decode JSON: %v", err)
+			return
+		}
+	} else {
+		if shareName == "" {
+			kingpin.UsageErrorf("Please provide either a shareName or --batch. Nothing to do.")
+			return
+		}
+
+		fmt.Fprint(os.Stderr, "Enter password (passing via stdin is also ok):\n")
+		pass := readPassword()
+		passList = append(passList, ShareInfo{shareName, pass})
+	}
+
+	for _, share := range passList {
+		err := client.UnlockShare(share.Name, share.Password)
+
+		if err != nil {
+			log.Fatalf("Unlocking share '%s' failed: %v. Aborting.", share.Name, err)
+			return
+		}
 	}
 }
 
