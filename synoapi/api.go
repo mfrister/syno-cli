@@ -81,6 +81,31 @@ func (c *Client) ListShares() ([]Share, error) {
 	return r.Data.Shares, nil
 }
 
+func (c *Client) LockShare(name string) error {
+	params := map[string]string{
+		"name": name,
+	}
+
+	r := synoBaseResponse{}
+	err := c.request("_______________________________________________________entry.cgi",
+		"SYNO.Core.Share.Crypto", "1", "encrypt", params, &r)
+
+	return err
+}
+
+func (c *Client) UnlockShare(name string, password string) error {
+	params := map[string]string{
+		"name":     name,
+		"password": password,
+	}
+
+	r := synoBaseResponse{}
+	err := c.request("_______________________________________________________entry.cgi",
+		"SYNO.Core.Share.Crypto", "1", "decrypt", params, &r)
+
+	return err
+}
+
 func (c *Client) request(path string, api string, api_version string, method string, params map[string]string, r SynoBaseResponse) ClientError {
 	p := url.Values{}
 	p.Set("api", api)
@@ -106,7 +131,7 @@ func (c *Client) request(path string, api string, api_version string, method str
 	}
 	log.Printf("synoapi.Client: Response: %v code: %v", r, resp.StatusCode)
 	if !r.Successful() {
-		return NewClientError(fmt.Sprintf("Synology API returned error code %v", r.ErrorCode()), nil)
+		return NewSynoError(r.ErrorCode())
 	}
 	return nil
 }
