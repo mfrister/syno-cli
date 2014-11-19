@@ -11,7 +11,7 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v1"
 
-	"frister.net/playground/synoshares/synoapi"
+	"frister.net/go/syno-cli/synoapi"
 )
 
 var (
