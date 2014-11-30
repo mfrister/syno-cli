@@ -83,7 +83,11 @@ func unlockShare(client *synoapi.Client, shareName string, batch bool) {
 		dec := json.NewDecoder(os.Stdin)
 		err := dec.Decode(&passList)
 		if err != nil {
-			log.Fatalf("Failed to decode JSON: %v", err)
+			if synErr, ok := err.(*json.SyntaxError); ok {
+				log.Fatalf("Failed to decode JSON: %s (offset %d)", synErr.Error(), synErr.Offset)
+			} else {
+				log.Fatalf("Failed to decode JSON: %v", err)
+			}
 			return
 		}
 	} else {
